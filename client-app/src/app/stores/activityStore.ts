@@ -7,17 +7,26 @@ configure({enforceActions:'always'});
 
 class ActivityStore {
   @observable activityResitry = new Map();
-  @observable activities: IActivity[] = [];
-  @observable selectedActivity: IActivity|undefined;
+  @observable activity: IActivity|null = null;
   @observable loadingInitial = false;
-  @observable editMode = false;
   @observable submitting = false;
   @observable target = '';
 
   @computed get activitiesByDate(){
-    return Array.from(this.activityResitry.values())
-    .sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+    return  this.groupActivitiesByDate(Array.from(this.activityResitry.values()))
   }
+
+  groupActivitiesByDate(activities:IActivity[]){
+    const sortedActivities = activities.sort(
+      (a,b)=>Date.parse(a.date)-Date.parse(b.date)
+    )
+    return Object.entries(sortedActivities.reduce((activities,activity)=>{
+      const date = activity.date.split('T')[0];
+      activities[date] = activities[date] ? [...activities[date],activity] : [activity];
+      return activities;
+    },{} as {[key:string]:IActivity[]}));
+  }
+
 
   @action loadActivities =async () =>{
     this.loadingInitial = true;
@@ -29,13 +38,45 @@ class ActivityStore {
           this.activityResitry.set(activity.id,activity);
         });
         this.loadingInitial= false
-      })    
+      })
+      console.log(this.groupActivitiesByDate(activities));    
     }catch(error){
       runInAction('load activities error',()=>{
         console.log(error);
         this.loadingInitial= false;
       }); 
     }
+  }
+
+  @action loadActivity =async (id:string) =>{
+   let activity = this.getActivity(id);
+   if(activity){
+     this.activity = activity;
+   }
+   else{
+    this.loadingInitial= true;
+    try{
+      activity = await agent.Activities.details(id);
+      runInAction('getting activity',()=>{
+        this.activity = activity;
+        this.loadingInitial = false; 
+      });
+      
+    }catch(error){
+      runInAction('get activity error',()=>{
+        this.loadingInitial = false; 
+      });
+      console.log(error);
+    }
+   }
+  }
+
+  @action clearActivity = ()=>{
+    this.activity = null;
+  }
+
+  getActivity = (id:string)=>{
+    return this.activityResitry.get(id);
   }
 
   @action createActivity = async (activity:IActivity)=>{
@@ -45,7 +86,6 @@ class ActivityStore {
       runInAction('creating activity',()=>{
         this.activityResitry.set(activity.id,activity);
         //this.selectedActivity = activity;
-        this.editMode = false;
         this.submitting = false;
       })
       
@@ -63,8 +103,7 @@ class ActivityStore {
       await agent.Activities.update(activity);
       runInAction('editing activity ',()=>{
         this.activityResitry.set(activity.id,activity);
-        this.selectedActivity = activity;
-        this.editMode = false;
+        this.activity = activity;
         this.submitting = false;
       })    
       
@@ -95,28 +134,6 @@ class ActivityStore {
       console.log(error);
     }
   }
-
-  @action OpenCreateForm = async ()=>{
-    this.editMode = true;
-    this.selectedActivity = undefined;
-  }
-  @action openEditForm = async (id:string)=>{
-    this.selectedActivity = this.activityResitry.get(id);
-    this.editMode = true;
-  }
-
-  @action cancelSelectedActivity = ()=>{
-    this.selectedActivity = undefined;
-  }
-
-  @action cancelFormOpen = async ()=>{
-    this.editMode = false;
-  }
-  @action selectActivity = (id:string) =>{
-    this.selectedActivity = this.activityResitry.get(id);
-    this.editMode = false;
-  }
-
 }
 
 export default createContext(new ActivityStore());
