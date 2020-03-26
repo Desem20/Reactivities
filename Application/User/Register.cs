@@ -15,7 +15,7 @@ using Persistence;
 
 namespace Application.User
 {
-  public class Registar
+  public class Register
   {
     public class Command : IRequest<User>
     {
@@ -76,7 +76,7 @@ namespace Application.User
             DisplayName = user.DisplayName,
             Token = _jwtGenrator.CreateToken(user),
             Username = user.UserName,
-            Image = null
+            Image = user.Photos.FirstOrDefault(x=>x.IsMain)?.Url
         };  
       } 
       throw new Exception("Problem creating user");
