@@ -22,6 +22,6 @@
   },
   "include": [
     "src",
-     "./typings-custom/**/*.ts"
+     "./typings-custom/**/*.ts", "typings-custom/react-cropper.dddd"
   ]
 }
